@@ -1,25 +1,17 @@
-// Server-only adapter for the R2 HTTP API. Object keys are content-addressed.
-function requestObject(key: string, method: "GET" | "PUT", body?: ArrayBuffer) {
-  const { R2_ACCOUNT_ID, R2_BUCKET_NAME, R2_API_TOKEN } = process.env;
-  if (!R2_ACCOUNT_ID || !R2_BUCKET_NAME || !R2_API_TOKEN) {
-    throw new Error("Missing R2_ACCOUNT_ID, R2_BUCKET_NAME or R2_API_TOKEN");
-  }
-  const path = [R2_ACCOUNT_ID, "r2", "buckets", R2_BUCKET_NAME, "objects", key]
-    .map(encodeURIComponent).join("/");
-  return fetch("https://api.cloudflare.com/client/v4/accounts/" + path, {
-    method, body, cache: "no-store",
-    headers: { Authorization: "Bearer " + R2_API_TOKEN },
-  });
-}
+import { get, put } from "@vercel/blob";
+
+// The evidence route verifies the content hash before storing the bytes.
 export const bucket = {
   async get(key: string) {
-    const response = await requestObject(key, "GET");
-    if (response.status === 404) return null;
-    if (!response.ok) throw new Error("R2 read failed: " + response.status);
-    return response;
+    const result = await get(key, { access: "private" });
+    return result?.statusCode === 200 ? { body: result.stream } : null;
   },
   async put(key: string, bytes: ArrayBuffer) {
-    const response = await requestObject(key, "PUT", bytes);
-    if (!response.ok) throw new Error("R2 write failed: " + response.status);
+    await put(key, bytes, {
+      access: "private",
+      contentType: "application/octet-stream",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    });
   },
 };

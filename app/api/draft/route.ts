@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import {
   parseInstruction,
   emptyDraft,
@@ -17,8 +16,7 @@ export async function POST(req: Request) {
   if (typeof input !== "string" || !input.trim() || input.length > 1200)
     return new Response(null, { status: 400 });
   const fallback = parseInstruction(input);
-  const key = (env as Cloudflare.Env & { OPENAI_API_KEY?: string })
-    .OPENAI_API_KEY;
+  const key = process.env.OPENAI_API_KEY;
   if (!key)
     return Response.json({ draft: fallback, source: "Built-in parser" });
   try {

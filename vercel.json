@@ -1,0 +1,5 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npx --no-install next build",
+  "installCommand": "npm ci"
+}

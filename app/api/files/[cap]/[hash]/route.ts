@@ -1,4 +1,4 @@
-import { env } from "cloudflare:workers";
+import { bucket } from "@/lib/vercel-storage";
 const valid = (s: string) => /^0x[0-9a-f]{64}$/.test(s);
 const max = 2 * 1024 * 1024;
 type Ctx = { params: Promise<{ cap: string; hash: string }> };
@@ -11,7 +11,7 @@ async function target(context: Ctx) {
 export async function GET(_: Request, c: Ctx) {
   const t = await target(c);
   if (!t) return new Response(null, { status: 400 });
-  const obj = await (env as Cloudflare.Env).BUCKET?.get(t.key);
+  const obj = await bucket.get(t.key);
   if (!obj) return new Response(null, { status: 404 });
   return new Response(obj.body, {
     headers: {
@@ -28,8 +28,6 @@ export async function PUT(req: Request, c: Ctx) {
   const origin = req.headers.get("origin");
   if (origin && origin !== new URL(req.url).origin)
     return new Response(null, { status: 403 });
-  const bucket = (env as Cloudflare.Env).BUCKET;
-  if (!bucket) return new Response(null, { status: 503 });
   const size = Number(req.headers.get("content-length") || 0);
   if (size > max) return new Response(null, { status: 413 });
   const reader = req.body?.getReader();
@@ -55,6 +53,6 @@ export async function PUT(req: Request, c: Ctx) {
       (b) => b.toString(16).padStart(2, "0"),
     ).join("");
   if (hash !== t.hash) return new Response(null, { status: 422 });
-  await bucket.put(t.key, bytes, { onlyIf: { etagDoesNotMatch: "*" } });
+  await bucket.put(t.key, bytes);
   return new Response(null, { status: 204 });
 }
